@@ -13,7 +13,8 @@ const APP = express()
 
 APP.use(
   cors({
-    origin: "http://localhost:5173", // your frontend
+    origin: "https://learn-and-earn-contest-frontenddist.onrender.com", // your frontend
+    methods: ["GET", "POST", "PUT", "DELETE"],
     credentials: true,
   })
 );
