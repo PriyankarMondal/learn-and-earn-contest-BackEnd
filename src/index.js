@@ -88,8 +88,7 @@ APP.use(
   })
 );
 
-// ✅ Optional but recommended (handle preflight)
-APP.options("*", cors());
+
 
 connectDb();
 

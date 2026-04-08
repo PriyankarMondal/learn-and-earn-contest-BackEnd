@@ -101,8 +101,8 @@ export const loginEmployee = asyncHandler(async (req, res) => {
 
   const cookieOptions = {
     httpOnly: true,
-    secure: false, // keep false for localhost
-    sameSite: "strict",
+    secure: process.env.NODE_ENV === "production",
+    sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
   }
 
   res.cookie("accessToken", accessToken, {
