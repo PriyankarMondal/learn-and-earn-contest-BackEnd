@@ -126,23 +126,51 @@ export const loginEmployee = asyncHandler(async (req, res) => {
 })
 
 // ================= LOGOUT =================
+
+// export const logoutEmployee = asyncHandler(async (req, res) => {
+//   const refreshToken = req.cookies.refreshToken
+
+//   if (refreshToken) {
+//     await User.findOneAndUpdate(
+//       { refreshToken: refreshToken },
+//       { refreshToken: null }
+//     )
+//   }
+
+//   res.clearCookie("accessToken")
+//   res.clearCookie("refreshToken")
+
+//   return res.status(200).json({
+//     message: "Logout successfully",
+//   })
+// })
+
+
+
 export const logoutEmployee = asyncHandler(async (req, res) => {
-  const refreshToken = req.cookies.refreshToken
+  const refreshToken = req.cookies.refreshToken;
 
   if (refreshToken) {
     await User.findOneAndUpdate(
-      { refreshToken: refreshToken },
+      { refreshToken },
       { refreshToken: null }
-    )
+    );
   }
 
-  res.clearCookie("accessToken")
-  res.clearCookie("refreshToken")
+  const cookieOptions = {
+    httpOnly: true,
+    secure: true,
+    sameSite: "none",
+  };
+
+  res.clearCookie("accessToken", cookieOptions);
+  res.clearCookie("refreshToken", cookieOptions);
 
   return res.status(200).json({
+    success: true,
     message: "Logout successfully",
-  })
-})
+  });
+});
 
 // ================= GET USER =================
 export const getUserById = asyncHandler(async (req, res) => {
