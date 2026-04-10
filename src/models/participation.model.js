@@ -2,8 +2,24 @@ import mongoose from "mongoose";
 
 const participationSchema = new mongoose.Schema(
   {
-    user: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
-    contest: { type: mongoose.Schema.Types.ObjectId, ref: "Contest" },
+    user: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
+
+    contest: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Contest",
+    },
+
+    // 🔥 NEW (for team contest)
+    teamName: String,
+
+    teamMembers: [
+      {
+        email: String,
+      },
+    ],
   },
   { timestamps: true }
 );

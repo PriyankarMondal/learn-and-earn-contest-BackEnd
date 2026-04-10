@@ -34,19 +34,12 @@ export const getContests = asyncHandler(async (req, res) => {
 
 /* 📝 JOIN CONTEST */
 export const joinContest = asyncHandler(async (req, res) => {
-  const { contestId } = req.body;
+  const { contestId, teamName, teamMembers } = req.body;
 
   const contest = await Contest.findById(contestId);
+
   if (!contest) {
     return res.status(404).json({ message: "Contest not found" });
-  }
-
-  const now = new Date();
-
-  if (now > contest.endDate) {
-    return res.status(400).json({
-      message: "Contest already ended",
-    });
   }
 
   const alreadyJoined = await Participation.findOne({
@@ -55,13 +48,29 @@ export const joinContest = asyncHandler(async (req, res) => {
   });
 
   if (alreadyJoined) {
-    return res.status(400).json({ message: "Already joined" });
+    return res.status(400).json({
+      message: "Already joined",
+    });
   }
 
-  await Participation.create({
+  let participationData = {
     user: req.user._id,
     contest: contestId,
-  });
+  };
+
+  // 🔥 TEAM CONTEST
+  if (contest.contestType === "team") {
+    if (!teamName || !teamMembers || teamMembers.length !== 2) {
+      return res.status(400).json({
+        message: "Team name and 2 member emails required",
+      });
+    }
+
+    participationData.teamName = teamName;
+    participationData.teamMembers = teamMembers;
+  }
+
+  await Participation.create(participationData);
 
   await Contest.findByIdAndUpdate(contestId, {
     $inc: { participantsCount: 1 },
@@ -72,10 +81,9 @@ export const joinContest = asyncHandler(async (req, res) => {
 
 /* 📤 SUBMIT CONTEST */
 export const submitContest = asyncHandler(async (req, res) => {
-  const { contestId, githubLink, liveLink, name, email } = req.body;
+  const { contestId, githubLink, liveLink, description } = req.body;
 
-  // validation
-  if (!contestId || !githubLink || !liveLink || !name || !email) {
+  if (!contestId || !githubLink || !liveLink || !description) {
     return res.status(400).json({
       message: "All fields are required",
     });
@@ -85,20 +93,6 @@ export const submitContest = asyncHandler(async (req, res) => {
 
   if (!contest) {
     return res.status(404).json({ message: "Contest not found" });
-  }
-
-  const now = new Date();
-
-  if (now < contest.startDate) {
-    return res.status(400).json({
-      message: "Contest has not started yet",
-    });
-  }
-
-  if (now > contest.endDate) {
-    return res.status(400).json({
-      message: "Contest has ended",
-    });
   }
 
   const joined = await Participation.findOne({
@@ -128,8 +122,7 @@ export const submitContest = asyncHandler(async (req, res) => {
     contest: contestId,
     githubLink,
     liveLink,
-    name,
-    email,
+    description,
   });
 
   res.status(201).json({

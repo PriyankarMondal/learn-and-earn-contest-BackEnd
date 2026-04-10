@@ -2,14 +2,21 @@ import mongoose from "mongoose";
 
 const submissionSchema = new mongoose.Schema(
   {
-    user: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
-    contest: { type: mongoose.Schema.Types.ObjectId, ref: "Contest" },
+    user: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
 
-    name: String,
-    email: String,
+    contest: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Contest",
+    },
 
     githubLink: String,
     liveLink: String,
+
+    // 🔥 NEW
+    description: String,
 
     score: {
       type: Number,
