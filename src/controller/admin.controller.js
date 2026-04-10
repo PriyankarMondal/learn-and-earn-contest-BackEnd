@@ -4,13 +4,32 @@ import asyncHandler from "../utils/asynchandler.js";
 
 /* CREATE CONTEST */
 export const createContest = asyncHandler(async (req, res) => {
-  const { title, description, startDate, endDate } = req.body;
+  const {
+    title,
+    description,
+    startDate,
+    endDate,
+    contestType,
+    prizeMoney,
+    category,
+    requirements,
+  } = req.body;
+
+  if (!title || !startDate || !endDate || !category) {
+    return res.status(400).json({
+      message: "Required fields missing",
+    });
+  }
 
   const contest = await Contest.create({
     title,
     description,
     startDate,
     endDate,
+    contestType: contestType || "single",
+    prizeMoney: prizeMoney || 0,
+    category,
+    requirements,
     createdBy: req.user._id,
   });
 
@@ -52,10 +71,10 @@ export const giveScore = asyncHandler(async (req, res) => {
   }
 
   const submission = await Submission.findByIdAndUpdate(
-  submissionId,
-  { score, status: "reviewed" },
-  { returnDocument: "after" } // 🔥 UPDATED
-);
+    submissionId,
+    { score, status: "reviewed" },
+    { returnDocument: "after" }
+  );
 
   if (!submission) {
     return res.status(404).json({
