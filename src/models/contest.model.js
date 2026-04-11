@@ -15,7 +15,7 @@ const contestSchema = new mongoose.Schema(
 
     contestType: {
       type: String,
-      enum: ["single", "team"],
+      enum: ["single", "team", "both"],
       default: "single",
     },
 
