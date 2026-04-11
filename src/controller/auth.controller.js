@@ -5,12 +5,10 @@ import jwt from "jsonwebtoken"
 
 // ================= REGISTER =================
 export const registerEmployee = asyncHandler(async (req, res) => {
-  const { name, email, number, password, gender } = req.body
+  const { name, email, number, password, gender, role } = req.body
 
   if (!name || !email || !number || !password) {
-    return res.status(400).json({
-      message: "All fields required",
-    })
+    return res.status(400).json({ message: "All fields required" })
   }
 
   const existingUser = await User.findOne({
@@ -18,9 +16,7 @@ export const registerEmployee = asyncHandler(async (req, res) => {
   })
 
   if (existingUser) {
-    return res.status(409).json({
-      message: "Email or phone already registered",
-    })
+    return res.status(409).json({ message: "Email or phone already registered" })
   }
 
   const username =
@@ -37,11 +33,17 @@ export const registerEmployee = asyncHandler(async (req, res) => {
     number,
     gender,
     username,
+    role: role || "Student",
   })
 
   return res.status(201).json({
     message: "User registered successfully",
-    data: newUser,
+    user: {
+      id: newUser._id,
+      name: newUser.name,
+      email: newUser.email,
+      role: newUser.role
+    }
   })
 })
 
@@ -50,54 +52,36 @@ export const loginEmployee = asyncHandler(async (req, res) => {
   const { email, password } = req.body
 
   if (!email || !password) {
-    return res.status(400).json({
-      message: "All fields are required",
-    })
+    return res.status(400).json({ message: "All fields are required" })
   }
 
-  const existingEmployee = await User.findOne({ email })
+  const existingUser = await User.findOne({ email })
 
-  if (!existingEmployee) {
-    return res.status(404).json({
-      message: "Email not found",
-    })
+  if (!existingUser) {
+    return res.status(404).json({ message: "Email not found" })
   }
 
-  const isPasswordValid = await bcrypt.compare(
-    password,
-    existingEmployee.password
-  )
+  const isPasswordValid = await bcrypt.compare(password, existingUser.password)
 
   if (!isPasswordValid) {
-    return res.status(401).json({
-      message: "Incorrect email or password",
-    })
-  }
-
-  // ✅ EXTRA SAFETY CHECK
-  if (!process.env.ACCESS_TOKEN_SECRET) {
-    throw new Error("ACCESS_TOKEN_SECRET missing in .env")
-  }
-
-  if (!process.env.REFRESH_TOKEN_SECRET) {
-    throw new Error("REFRESH_TOKEN_SECRET missing in .env")
+    return res.status(401).json({ message: "Incorrect email or password" })
   }
 
   // ✅ Generate Tokens
   const accessToken = jwt.sign(
-    { id: existingEmployee._id, role: existingEmployee.role },
+    { id: existingUser._id, role: existingUser.role },
     process.env.ACCESS_TOKEN_SECRET,
     { expiresIn: process.env.ACCESS_TOKEN_EXPIRY || "1d" }
   )
 
   const refreshToken = jwt.sign(
-    { id: existingEmployee._id, role: existingEmployee.role },
+    { id: existingUser._id, role: existingUser.role },
     process.env.REFRESH_TOKEN_SECRET,
     { expiresIn: process.env.REFRESH_TOKEN_EXPIRY || "7d" }
   )
 
-  existingEmployee.refreshtoken = refreshToken
-  await existingEmployee.save({ validateBeforeSave: false })
+  existingUser.refreshtoken = refreshToken
+  await existingUser.save({ validateBeforeSave: false })
 
   const cookieOptions = {
     httpOnly: true,
@@ -118,42 +102,22 @@ export const loginEmployee = asyncHandler(async (req, res) => {
   return res.status(200).json({
     message: "Login successful",
     user: {
-      id: existingEmployee._id,
-      email: existingEmployee.email,
-      role: existingEmployee.role,
+      id: existingUser._id,
+      name: existingUser.name,
+      email: existingUser.email,
+      role: existingUser.role,
     },
   })
 })
 
 // ================= LOGOUT =================
-
-// export const logoutEmployee = asyncHandler(async (req, res) => {
-//   const refreshToken = req.cookies.refreshToken
-
-//   if (refreshToken) {
-//     await User.findOneAndUpdate(
-//       { refreshToken: refreshToken },
-//       { refreshToken: null }
-//     )
-//   }
-
-//   res.clearCookie("accessToken")
-//   res.clearCookie("refreshToken")
-
-//   return res.status(200).json({
-//     message: "Logout successfully",
-//   })
-// })
-
-
-
 export const logoutEmployee = asyncHandler(async (req, res) => {
   const refreshToken = req.cookies.refreshToken;
 
   if (refreshToken) {
     await User.findOneAndUpdate(
-      { refreshToken },
-      { refreshToken: null }
+      { refreshtoken: refreshToken }, // Fixed key 'refreshtoken' to match model
+      { refreshtoken: null }
     );
   }
 
@@ -172,48 +136,61 @@ export const logoutEmployee = asyncHandler(async (req, res) => {
   });
 });
 
-// ================= GET USER =================
+// ================= GET CURRENT PROFILE =================
+export const getCurrentUser = asyncHandler(async (req, res) => {
+  const user = await User.findById(req.user._id).select("-password")
+  res.status(200).json(user)
+})
+
+// ================= UPDATE PROFILE =================
+export const updateProfile = asyncHandler(async (req, res) => {
+  const { name, email, number, gender } = req.body
+  
+  const user = await User.findById(req.user._id)
+  if (!user) {
+    return res.status(404).json({ message: "User not found" })
+  }
+
+  if (name) user.name = name
+  if (email && email !== user.email) {
+     const emailExists = await User.findOne({ email });
+     if (emailExists) return res.status(400).json({ message: "Email already taken" });
+     user.email = email
+  }
+  if (number) user.number = number
+  if (gender) user.gender = gender
+
+  await user.save()
+
+  res.json({
+    message: "Profile updated successfully",
+    user: {
+      id: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      number: user.number,
+      gender: user.gender
+    }
+  })
+})
+
+// ================= ADMIN HELPERS =================
 export const getUserById = asyncHandler(async (req, res) => {
   const { id } = req.params
-
   const user = await User.findById(id).select("-password")
-
-  if (!user) {
-    return res.status(404).json({
-      message: "User not found",
-    })
-  }
-
-  return res.status(200).json({
-    message: "User found successfully",
-    data: user,
-  })
+  if (!user) return res.status(404).json({ message: "User not found" })
+  res.status(200).json(user)
 })
 
-// ================= GET ALL USERS =================
 export const getAllUsers = asyncHandler(async (req, res) => {
-  const users = await User.find().select("-password")
-
-  res.status(200).json({
-    success: true,
-    count: users.length,
-    users,
-  })
+  const users = await User.find().select("-password").sort({ createdAt: -1 })
+  res.status(200).json(users)
 })
 
-// ================= DELETE =================
 export const deleteUserById = asyncHandler(async (req, res) => {
   const { id } = req.params
-
   const deletedUser = await User.findByIdAndDelete(id)
-
-  if (!deletedUser) {
-    return res.status(404).json({
-      message: "User not found",
-    })
-  }
-
-  return res.status(200).json({
-    message: "User deleted successfully",
-  })
+  if (!deletedUser) return res.status(404).json({ message: "User not found" })
+  res.status(200).json({ message: "User deleted successfully" })
 })

@@ -4,6 +4,7 @@ import {
   joinContest,
   submitContest,
   getLeaderboard,
+  getMyParticipations,
 } from "../controller/student.controller.js";
 
 import { verifyJwt } from "../middleware/verify.jwt.js";
@@ -14,5 +15,6 @@ router.get("/contests", verifyJwt, getContests);
 router.post("/join", verifyJwt, joinContest);
 router.post("/submit", verifyJwt, submitContest);
 router.get("/leaderboard/:contestId", verifyJwt, getLeaderboard);
+router.get("/my-participations", verifyJwt, getMyParticipations);
 
 export default router;
