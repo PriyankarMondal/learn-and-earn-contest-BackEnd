@@ -28,8 +28,8 @@ const contestSchema = new mongoose.Schema(
     category: {
       type: String,
       enum: [
-        "UI/UX Design",
         "MERN Stack",
+        "UI/UX Design",
         "Web Development",
         "Graphics Design",
         "ML/AI",

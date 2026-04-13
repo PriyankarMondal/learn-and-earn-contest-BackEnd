@@ -14,6 +14,7 @@ const participationSchema = new mongoose.Schema(
 
     // 🔥 NEW (for team contest)
     teamName: String,
+    
 
     teamMembers: [
       {
