@@ -91,12 +91,12 @@ export const loginEmployee = asyncHandler(async (req, res) => {
 
   res.cookie("accessToken", accessToken, {
     ...cookieOptions,
-    maxAge: 15 * 60 * 1000,
+    maxAge: 24 * 60 * 60 * 1000,            //  here it allow 24 hours for accesstoken
   })
 
   res.cookie("refreshToken", refreshToken, {
     ...cookieOptions,
-    maxAge: 7 * 24 * 60 * 60 * 1000,
+    maxAge: 7 * 24 * 60 * 60 * 1000,            //  here it allow 7 days then coolie will be cleared
   })
 
   return res.status(200).json({
@@ -123,8 +123,8 @@ export const logoutEmployee = asyncHandler(async (req, res) => {
 
   const cookieOptions = {
     httpOnly: true,
-    secure: true,
-    sameSite: "none",
+    secure: process.env.NODE_ENV === "production",
+    sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
   };
 
   res.clearCookie("accessToken", cookieOptions);
@@ -145,7 +145,7 @@ export const getCurrentUser = asyncHandler(async (req, res) => {
 // ================= UPDATE PROFILE =================
 export const updateProfile = asyncHandler(async (req, res) => {
   const { name, email, number, gender } = req.body
-  
+
   const user = await User.findById(req.user._id)
   if (!user) {
     return res.status(404).json({ message: "User not found" })
@@ -153,9 +153,9 @@ export const updateProfile = asyncHandler(async (req, res) => {
 
   if (name) user.name = name
   if (email && email !== user.email) {
-     const emailExists = await User.findOne({ email });
-     if (emailExists) return res.status(400).json({ message: "Email already taken" });
-     user.email = email
+    const emailExists = await User.findOne({ email });
+    if (emailExists) return res.status(400).json({ message: "Email already taken" });
+    user.email = email
   }
   if (number) user.number = number
   if (gender) user.gender = gender

@@ -94,12 +94,12 @@ export const joinContest = asyncHandler(async (req, res) => {
 
 /* 📤 SUBMIT CONTEST */
 export const submitContest = asyncHandler(async (req, res) => {
-  const { contestId, githubLink, liveLink, description } = req.body;
+  const { contestId, githubLink, liveLink, description, name, email } = req.body;
 
   // validation
-  if (!contestId || !githubLink || !liveLink || !name || !email) {
+  if (!contestId || !githubLink || !liveLink || !description || !name || !email) {
     return res.status(400).json({
-      message: "All fields are required",
+      message: "All fields are required (Name, Email, GitHub, Live Link, and Description)",
     });
   }
 
@@ -143,6 +143,8 @@ export const submitContest = asyncHandler(async (req, res) => {
   const submission = await Submission.create({
     user: req.user._id,
     contest: contestId,
+    name,
+    email,
     githubLink,
     liveLink,
     description,
@@ -183,4 +185,13 @@ export const getMyParticipations = asyncHandler(async (req, res) => {
   });
 
   res.json(data);
+});
+
+/* 📑 MY SUBMISSIONS (NEW) */
+export const getMySubmissions = asyncHandler(async (req, res) => {
+  const submissions = await Submission.find({ user: req.user._id })
+    .populate("contest")
+    .sort({ createdAt: -1 });
+
+  res.status(200).json(submissions);
 });

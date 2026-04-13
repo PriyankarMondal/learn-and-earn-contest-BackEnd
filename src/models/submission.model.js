@@ -12,6 +12,9 @@ const submissionSchema = new mongoose.Schema(
       ref: "Contest",
     },
 
+    name: String,
+    email: String,
+
     githubLink: String,
     liveLink: String,
 
