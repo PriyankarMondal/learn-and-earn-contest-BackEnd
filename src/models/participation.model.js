@@ -12,13 +12,17 @@ const participationSchema = new mongoose.Schema(
       ref: "Contest",
     },
 
-    teamName: {
-      type: String,
+    teamName: String,
+
+    teamLeader: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
     },
 
-    teamMembers: [
+    acceptedMembers: [
       {
-        email: String,
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
       },
     ],
   },
