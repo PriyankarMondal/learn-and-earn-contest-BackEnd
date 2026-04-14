@@ -12,13 +12,16 @@ export const getContests = asyncHandler(async (req, res) => {
   const userParticipations = await Participation.find({ user: req.user._id });
   const joinedContestIds = userParticipations.map(p => p.contest.toString());
 
-  const formattedContests = contests.map((contest) => {
+  // Get submission counts for all contests
+  const formattedContests = await Promise.all(contests.map(async (contest) => {
     let status = "upcoming";
     if (now >= contest.startDate && now <= contest.endDate) {
       status = "running";
     } else if (now > contest.endDate) {
       status = "ended";
     }
+
+    const submissionsCount = await Submission.countDocuments({ contest: contest._id });
 
     return {
       _id: contest._id,
@@ -30,9 +33,10 @@ export const getContests = asyncHandler(async (req, res) => {
       prizeMoney: contest.prizeMoney,
       category: contest.category,
       status,
+      submissionsCount, // Dynamic count from DB
       isJoined: joinedContestIds.includes(contest._id.toString())
     };
-  });
+  }));
 
   res.status(200).json(formattedContests);
 });
@@ -194,4 +198,99 @@ export const getMySubmissions = asyncHandler(async (req, res) => {
     .sort({ createdAt: -1 });
 
   res.status(200).json(submissions);
+});
+
+/* 📊 GET STUDENT DASHBOARD DATA (PROPER) */
+export const getDashboardData = asyncHandler(async (req, res) => {
+  const userId = req.user._id;
+
+  // 1. Calculate Stats
+  const joinedCount = await Participation.countDocuments({ user: userId });
+  
+  const participations = await Participation.find({ user: userId }).populate("contest");
+  const now = new Date();
+  const activeCount = participations.filter(p => p.contest && p.contest.startDate <= now && p.contest.endDate >= now).length;
+
+  const submissions = await Submission.find({ user: userId });
+  const pendingCount = submissions.filter(s => s.status === 'pending').length;
+  
+  // Total Earnings (Sum of all scores)
+  const totalEarnings = submissions.reduce((sum, s) => sum + (s.score || 0), 0);
+
+  // 2. Get Global Rank
+  // To get rank, we need to aggregate all users' scores
+  const allUserScores = await Submission.aggregate([
+    { $group: { _id: "$user", totalScore: { $sum: "$score" } } },
+    { $sort: { totalScore: -1 } }
+  ]);
+  
+  const rankIndex = allUserScores.findIndex(u => u._id.toString() === userId.toString());
+  const rank = rankIndex === -1 ? "N/A" : (rankIndex + 1).toString().padStart(2, '0');
+
+  // 3. Recent Activity (Latest 3 interactions)
+  // We'll combine participations and submissions for this
+  const recentParticipations = await Participation.find({ user: userId })
+    .populate("contest", "title")
+    .sort({ createdAt: -1 })
+    .limit(3);
+
+  const activities = recentParticipations.map(p => ({
+    type: 'join',
+    title: p.contest?.title || 'Unknown Contest',
+    date: p.createdAt,
+    status: 'received'
+  }));
+
+  res.json({
+    stats: {
+      joined: joinedCount.toString().padStart(2, '0'),
+      active: activeCount.toString().padStart(2, '0'),
+      pending: pendingCount.toString().padStart(2, '0'),
+      earnings: `₹${totalEarnings.toLocaleString()}`,
+      rank
+    },
+    activities: activities.slice(0, 3)
+  });
+});
+
+/* 🏆 GLOBAL LEADERBOARD */
+export const getGlobalLeaderboard = asyncHandler(async (req, res) => {
+  const { User } = await import("../models/user.model.js");
+
+  const results = await Submission.aggregate([
+    {
+      $group: {
+        _id: "$user",
+        totalScore: { $sum: "$score" }
+      }
+    },
+    {
+      $lookup: {
+        from: "users",
+        localField: "_id",
+        foreignField: "_id",
+        as: "userDetails"
+      }
+    },
+    { $unwind: "$userDetails" },
+    {
+      $project: {
+        _id: 1,
+        name: "$userDetails.name",
+        totalScore: 1,
+        avatar: "$userDetails.avatar"
+      }
+    },
+    { $sort: { totalScore: -1 } },
+    { $limit: 10 }
+  ]);
+
+  const formattedResults = results.map((r, i) => ({
+    rank: (i + 1).toString().padStart(2, '0'),
+    name: r.name,
+    score: `₹${r.totalScore.toLocaleString()}`,
+    _id: r._id
+  }));
+
+  res.json(formattedResults);
 });

@@ -38,6 +38,9 @@ export const createContest = asyncHandler(async (req, res) => {
 
 /* DASHBOARD STATS */
 export const getDashboardStats = asyncHandler(async (req, res) => {
+  const { User } = await import("../models/user.model.js");
+  const Participation = (await import("../models/participation.model.js")).default;
+  
   const totalContests = await Contest.countDocuments();
   const activeContestsCount = await Contest.countDocuments({
     startDate: { $lte: new Date() },
@@ -45,12 +48,33 @@ export const getDashboardStats = asyncHandler(async (req, res) => {
   });
   const totalSubmissions = await Submission.countDocuments();
   const pendingSubmissions = await Submission.countDocuments({ status: "pending" });
+  
+  // User metrics
+  const totalStudents = await User.countDocuments({ role: "Student" });
+  const totalAdmins = await User.countDocuments({ role: "Admin" });
+  const pendingVerification = await User.countDocuments({ isVerified: false });
+  
+  // Submission trends
+  const evaluatedToday = await Submission.countDocuments({ 
+    status: "reviewed", 
+    updatedAt: { $gte: new Date(new Date().setHours(0,0,0,0)) } 
+  });
+  
+  // Participant Count (Unique student IDs)
+  const participants = await Participation.distinct("user");
+  const totalParticipants = participants.length;
 
   res.json({ 
     totalContests, 
     activeContests: activeContestsCount, 
     submissions: totalSubmissions,
-    pendingSubmissions 
+    pendingSubmissions,
+    totalParticipants,
+    totalStudents,
+    totalAdmins,
+    pendingVerification,
+    evaluatedToday,
+    winnerSlots: 42 // Mock or calculate if necessary, for now letting it be dynamic-ready
   });
 });
 
