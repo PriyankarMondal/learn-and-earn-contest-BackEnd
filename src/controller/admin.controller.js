@@ -13,11 +13,19 @@ export const createContest = asyncHandler(async (req, res) => {
     prizeMoney,
     category,
     requirements,
+    teamSize, // 🔥 NEW
   } = req.body;
 
   if (!title || !startDate || !endDate || !category) {
     return res.status(400).json({
       message: "Required fields missing",
+    });
+  }
+
+  // 🔥 VALIDATION
+  if ((contestType === "team" || contestType === "both") && !teamSize) {
+    return res.status(400).json({
+      message: "Team size is required for team contests",
     });
   }
 
@@ -27,6 +35,7 @@ export const createContest = asyncHandler(async (req, res) => {
     startDate,
     endDate,
     contestType: contestType || "single",
+    teamSize: teamSize || 1, // 🔥 NEW
     prizeMoney: prizeMoney || 0,
     category,
     requirements,
@@ -35,7 +44,6 @@ export const createContest = asyncHandler(async (req, res) => {
 
   res.status(201).json(contest);
 });
-
 /* DASHBOARD STATS */
 export const getDashboardStats = asyncHandler(async (req, res) => {
   const { User } = await import("../models/user.model.js");

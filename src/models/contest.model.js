@@ -19,7 +19,13 @@ const contestSchema = new mongoose.Schema(
       default: "single",
     },
 
-    // 🔥 NEW FIELDS
+    // 🔥 NEW: TEAM SIZE (only for team/both)
+    teamSize: {
+      type: Number,
+      default: 1,
+      min: 1,
+    },
+
     prizeMoney: {
       type: Number,
       default: 0,
