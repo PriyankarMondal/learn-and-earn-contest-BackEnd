@@ -8,9 +8,12 @@ export const getContests = asyncHandler(async (req, res) => {
   const now = new Date();
   const contests = await Contest.find().sort({ createdAt: -1 });
 
-  // Get current user's participations to mark "isJoined"
-  const userParticipations = await Participation.find({ user: req.user._id });
-  const joinedContestIds = userParticipations.map(p => p.contest.toString());
+  // Get current user's participations to mark "isJoined" (only if logged in)
+  let joinedContestIds = [];
+  if (req.user && req.user._id) {
+    const userParticipations = await Participation.find({ user: req.user._id });
+    joinedContestIds = userParticipations.map(p => p.contest.toString());
+  }
 
   // Get submission counts for all contests
   const formattedContests = await Promise.all(contests.map(async (contest) => {
@@ -24,7 +27,7 @@ export const getContests = asyncHandler(async (req, res) => {
     const submissionsCount = await Submission.countDocuments({ contest: contest._id });
 
     return {
-      _id: contest._id,
+      _id: contest._id.toString(),
       title: contest.title,
       description: contest.description,
       startDate: contest.startDate,
@@ -32,8 +35,10 @@ export const getContests = asyncHandler(async (req, res) => {
       participantsCount: contest.participantsCount,
       prizeMoney: contest.prizeMoney,
       category: contest.category,
+      contestType: contest.contestType,
+      requirements: contest.requirements,
       status,
-      submissionsCount, // Dynamic count from DB
+      submissionsCount,
       isJoined: joinedContestIds.includes(contest._id.toString())
     };
   }));
@@ -41,7 +46,66 @@ export const getContests = asyncHandler(async (req, res) => {
   res.status(200).json(formattedContests);
 });
 
-/* 📝 JOIN CONTEST */
+/* 📡 GET SINGLE CONTEST DETAILS — returns ALL fields including requirements */
+export const getContestDetails = asyncHandler(async (req, res) => {
+  const { contestId } = req.params;
+
+  let contest = null;
+
+  // Try standard ObjectId search
+  try {
+    contest = await Contest.findById(contestId);
+  } catch (e) {
+    // Not a valid ObjectId — will try string match below
+  }
+
+  // Fallback: search as plain string
+  if (!contest) {
+    contest = await Contest.findOne({ _id: contestId });
+  }
+
+  if (!contest) {
+    return res.status(404).json({ message: "Contest not found" });
+  }
+
+  const now = new Date();
+  let status = "upcoming";
+  if (now >= contest.startDate && now <= contest.endDate) {
+    status = "running";
+  } else if (now > contest.endDate) {
+    status = "ended";
+  }
+
+  // Check if current user has joined (safe for public/unauthenticated calls)
+  let isJoined = false;
+  if (req.user && req.user._id) {
+    const participation = await Participation.findOne({
+      user: req.user._id,
+      contest: contest._id,
+    });
+    isJoined = !!participation;
+  }
+
+  const submissionsCount = await Submission.countDocuments({ contest: contest._id });
+
+  // Return every field from DB, plus computed fields
+  res.status(200).json({
+    _id: contest._id.toString(),
+    title: contest.title,
+    description: contest.description,
+    requirements: contest.requirements,
+    contestType: contest.contestType,
+    prizeMoney: contest.prizeMoney,
+    category: contest.category,
+    startDate: contest.startDate,
+    endDate: contest.endDate,
+    participantsCount: contest.participantsCount,
+    status,
+    submissionsCount,
+    isJoined,
+  });
+});
+
 export const joinContest = asyncHandler(async (req, res) => {
   const { contestId } = req.body;
 

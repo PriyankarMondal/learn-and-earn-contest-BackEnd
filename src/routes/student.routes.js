@@ -1,6 +1,7 @@
 import express from "express";
 import {
   getContests,
+  getContestDetails,
   joinContest,
   submitContest,
   getLeaderboard,
@@ -14,7 +15,14 @@ import { verifyJwt } from "../middleware/verify.jwt.js";
 
 const router = express.Router();
 
+// --- PUBLIC ROUTES (No login required — for home page) ---
+router.get("/public-contests", getContests);
+router.get("/public-contest/:contestId", getContestDetails);
+
+// --- PROTECTED ROUTES (Login required) ---
 router.get("/contests", verifyJwt, getContests); 
+router.get("/contest/:contestId", verifyJwt, getContestDetails);
+
 router.post("/join", verifyJwt, joinContest);
 router.post("/submit", verifyJwt, submitContest);
 router.get("/leaderboard/:contestId", verifyJwt, getLeaderboard);
